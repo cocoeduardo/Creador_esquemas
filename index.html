@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Schema Terminal v3.5.0 - Draggable Edition</title>
+    <title>Generador de Esquemas - Centrado Automático</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
 
@@ -65,11 +64,8 @@
             align-items: center;
             justify-content: center;
             transform-origin: 0 0;
-            will-change: transform;
-            image-rendering: crisp-edges;
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-            transform: translate3d(0,0,0);
+            transform: translate(0, 0) scale(1);
+            transition: opacity 0.2s ease-in;
         }
 
         .tree-row {
@@ -77,6 +73,7 @@
             align-items: center;
             position: relative;
             width: max-content;
+            flex-direction: row;
         }
 
         .node {
@@ -102,7 +99,6 @@
             justify-content: center;
             cursor: grab;
             user-select: none;
-            transition: box-shadow 0.2s;
         }
 
         .node:active {
@@ -112,18 +108,18 @@
 
         .children-group {
             display: flex;
+            position: relative;
+            width: max-content;
             flex-direction: column;
             gap: 24px;
             padding-left: 100px;
-            position: relative;
-            width: max-content;
         }
 
         .connector-svg {
             position: absolute;
             left: 0;
             top: 0;
-            width: 100px;
+            width: 100%;
             height: 100%;
             pointer-events: none;
             overflow: visible;
@@ -133,13 +129,6 @@
             fill: none;
             stroke: #000;
             stroke-width: 2;
-        }
-
-        textarea, input {
-            background: #000 !important;
-            color: var(--retro-orange) !important;
-            border: 1px solid var(--retro-orange) !important;
-            padding: 10px;
         }
 
         .btn-retro {
@@ -171,15 +160,18 @@
         }
 
         .scanline {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             background: linear-gradient(to bottom, rgba(255,102,0,0) 50%, rgba(255,102,0,0.01) 50%);
             background-size: 100% 4px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 100;
+            position: fixed; top: 0; left: 0; z-index: 100;
             pointer-events: none;
+        }
+
+        textarea {
+            background: #000 !important;
+            color: var(--retro-orange) !important;
+            border: 1px solid var(--retro-orange) !important;
+            padding: 10px;
         }
     </style>
 </head>
@@ -187,7 +179,7 @@
     <div class="scanline"></div>
 
     <header class="mb-4 flex justify-between items-end border-b border-orange-900 pb-2">
-        <h1 class="text-2xl font-bold tracking-tighter">GENERADOR DE ESQUEMAS <span class="text-sm opacity-50 ml-2">v3.5.0</span></h1>
+        <h1 class="text-2xl font-bold tracking-tighter">GENERADOR DE ESQUEMAS <span class="text-sm opacity-50 ml-2">v4.2.0</span></h1>
         <div id="status-msg" class="text-xs font-bold uppercase tracking-widest">SISTEMA: EN LÍNEA _</div>
     </header>
 
@@ -196,7 +188,7 @@
         <div class="flex-1 terminal-window flex flex-col relative overflow-hidden">
             <div class="terminal-header">
                 <span>VIEWPORT_CENTRAL</span>
-                <span>ARRASTRAR NODO: POSICIONAR | ARRASTRAR FONDO: MOVER VISTA</span>
+                <span>ARRASTRAR NODO: MOVER | ARRASTRAR FONDO: NAVEGAR</span>
             </div>
             <div id="viewport">
                 <div id="zoom-level">ZOOM: 100%</div>
@@ -210,18 +202,19 @@
             </div>
             
             <div class="p-4 flex flex-col h-full gap-4 overflow-y-auto">
-                <div class="flex flex-col flex-1 min-h-[150px]">
-                    <label class="text-[10px] mb-1 font-bold">ENTRADA JSON:</label>
-                    <textarea id="json-input" class="flex-1 text-xs" spellcheck="false"></textarea>
-                    <button id="render-btn" class="btn-retro mt-2">INYECTAR DATOS</button>
+                <div class="flex flex-col gap-2 py-2">
+                    <label class="text-[10px] font-bold">ACCESO DIRECTO:</label>
+                    <button id="render-clipboard-btn" class="btn-retro w-full py-8 text-sm bg-orange-900/20">
+                        PEGAR Y CENTRAR AUTOMÁTICAMENTE
+                    </button>
+                    <p class="text-[9px] opacity-60 text-center uppercase tracking-tighter">Acceso directo al portapapeles sin diálogos extra</p>
                 </div>
 
-                <div class="flex gap-2">
-                    <button id="download-btn" class="btn-retro flex-1 text-xs">EXPORTAR JPEG</button>
-                    <button id="reset-view-btn" class="btn-retro flex-1 text-xs">CENTRAR VISTA</button>
+                <div class="flex gap-2 border-t border-orange-950 pt-4">
+                    <button id="reset-view-btn" class="btn-retro flex-1 text-xs w-full">CENTRAR VISTA</button>
                 </div>
 
-                <div class="flex flex-col">
+                <div class="flex flex-col mt-auto pt-4 border-t border-orange-950">
                     <label class="text-[10px] mb-1 font-bold">PROMPT PARA TU IA:</label>
                     <div class="relative">
                         <textarea id="prompt-text" readonly class="w-full text-[10px] h-32 opacity-70" style="color: #ffaa66 !important;">Eres un sistema especializado en análisis académico y estructuración de contenidos en formato jerárquico.
@@ -396,9 +389,7 @@ REGLAS CRÍTICAS:
 
 Devuelve únicamente el JSON completo marcado como código en markdown, válido y bien estructurado.
 
-Nada más.
-
-</textarea>
+Nada más.</textarea>
                         <button id="copy-prompt-btn" class="absolute bottom-2 right-2 text-[10px] bg-orange-950 px-2 py-1 border border-orange-500">COPIAR</button>
                     </div>
                 </div>
@@ -409,261 +400,179 @@ Nada más.
     <script>
         const viewport = document.getElementById('viewport');
         const canvas = document.getElementById('schema-canvas');
-        const jsonInput = document.getElementById('json-input');
-        const renderBtn = document.getElementById('render-btn');
-        const downloadBtn = document.getElementById('download-btn');
-        const resetBtn = document.getElementById('reset-view-btn');
+        const renderBtn = document.getElementById('render-clipboard-btn');
         const statusMsg = document.getElementById('status-msg');
         const zoomLabel = document.getElementById('zoom-level');
 
         let scale = 1.0;
         let translateX = 0;
         let translateY = 0;
+        let currentData = null;
         
         let isDraggingViewport = false;
         let isDraggingNode = false;
         let activeNode = null;
-        
-        let startX, startY;
-        let initialNodeX = 0;
-        let initialNodeY = 0;
+        let startX, startY, initialNodeX = 0, initialNodeY = 0;
 
         function updateTransform() {
-            canvas.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
+            canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
             zoomLabel.textContent = `ZOOM: ${Math.round(scale * 100)}%`;
         }
 
-        // Lógica de interacción
-        viewport.onmousedown = (e) => {
-            const target = e.target;
+        async function executeRender(data) {
+            canvas.style.opacity = "0";
+            canvas.innerHTML = '';
             
-            if (target.classList.contains('node')) {
-                // Iniciar arrastre de nodo
-                isDraggingNode = true;
-                activeNode = target;
-                
-                // Obtener el offset actual almacenado en el dataset o 0
-                initialNodeX = parseFloat(activeNode.dataset.offsetX || 0);
-                initialNodeY = parseFloat(activeNode.dataset.offsetY || 0);
-                
-                startX = e.clientX;
-                startY = e.clientY;
-                
-                e.stopPropagation();
-            } else {
-                // Iniciar arrastre de lienzo
-                isDraggingViewport = true;
-                startX = e.clientX;
-                startY = e.clientY;
-            }
-        };
-
-        window.onmousemove = (e) => {
-            if (isDraggingNode && activeNode) {
-                const dx = (e.clientX - startX) / scale;
-                const dy = (e.clientY - startY) / scale;
-                
-                const newX = initialNodeX + dx;
-                const newY = initialNodeY + dy;
-                
-                activeNode.style.transform = `translate(${newX}px, ${newY}px)`;
-                activeNode.dataset.offsetX = newX;
-                activeNode.dataset.offsetY = newY;
-                
-                drawConnectors(); // Redibujar líneas en tiempo real
-            } else if (isDraggingViewport) {
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-                
-                translateX += dx;
-                translateY += dy;
-                
-                startX = e.clientX;
-                startY = e.clientY;
-                
-                updateTransform();
-            }
-        };
-
-        window.onmouseup = () => {
-            isDraggingViewport = false;
-            isDraggingNode = false;
-            activeNode = null;
-        };
-
-        // Zoom con rueda
-        viewport.onwheel = (e) => {
-            e.preventDefault();
-            const zoomSpeed = 0.001;
-            const delta = Math.exp(-e.deltaY * zoomSpeed);
-            const newScale = scale * delta;
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.width = 'max-content';
+            wrapper.appendChild(renderTree(data));
+            canvas.appendChild(wrapper);
             
-            if (newScale > 0.05 && newScale < 5) {
-                const rect = viewport.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-                translateX = centerX - (centerX - translateX) * (newScale / scale);
-                translateY = centerY - (centerY - translateY) * (newScale / scale);
-                scale = newScale;
-                updateTransform();
-            }
-        };
-
-        function centerView() {
-            const vWidth = viewport.clientWidth;
-            const vHeight = viewport.clientHeight;
-            const content = canvas.firstChild;
-            if (!content) return;
-
-            const contentRect = content.getBoundingClientRect();
-            const contentWidth = contentRect.width / scale;
-            const contentHeight = contentRect.height / scale;
-
-            scale = Math.min((vWidth - 100) / contentWidth, (vHeight - 100) / contentHeight, 1.0);
-            translateX = (vWidth / 2) - (3000 + contentWidth / 2) * scale;
-            translateY = (vHeight / 2) - (3000 + contentHeight / 2) * scale;
-
-            updateTransform();
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    drawConnectors();
+                    centerView();
+                    canvas.style.opacity = "1";
+                });
+            });
         }
 
-        resetBtn.onclick = centerView;
-
         function renderTree(data) {
-            const rootWrapper = document.createElement('div');
-            rootWrapper.className = 'tree-row';
-            
+            const root = document.createElement('div');
+            root.className = 'tree-row';
             const node = document.createElement('div');
             node.className = 'node';
             node.textContent = data.titulo;
-            // Inicializar offsets
-            node.dataset.offsetX = 0;
+            node.dataset.offsetX = 0; 
             node.dataset.offsetY = 0;
-            
-            rootWrapper.appendChild(node);
+            root.appendChild(node);
 
             if (data.hijos && data.hijos.length > 0) {
-                const childrenGroup = document.createElement('div');
-                childrenGroup.className = 'children-group';
-                
+                const group = document.createElement('div');
+                group.className = 'children-group';
                 const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
                 svg.className.baseVal = "connector-svg";
-                childrenGroup.appendChild(svg);
-
-                data.hijos.forEach(hijo => {
-                    childrenGroup.appendChild(renderTree(hijo));
-                });
-                rootWrapper.appendChild(childrenGroup);
+                group.appendChild(svg);
+                data.hijos.forEach(h => group.appendChild(renderTree(h)));
+                root.appendChild(group);
             }
-            return rootWrapper;
+            return root;
         }
 
         function drawConnectors() {
-            const groups = document.querySelectorAll('.children-group');
-            groups.forEach(group => {
+            document.querySelectorAll('.children-group').forEach(group => {
                 const svg = group.querySelector('svg');
                 svg.innerHTML = '';
-                const parentNode = group.parentElement.querySelector('.node');
-                const children = Array.from(group.children).filter(el => el.classList.contains('tree-row'));
-                
-                // Posición del padre considerando su offset de arrastre
-                const pOffX = parseFloat(parentNode.dataset.offsetX || 0);
-                const pOffY = parseFloat(parentNode.dataset.offsetY || 0);
-                
-                const sX = pOffX; 
-                const sY = parentNode.offsetTop + (parentNode.offsetHeight / 2) + pOffY;
+                const parent = group.parentElement.querySelector('.node');
+                const pX = parseFloat(parent.dataset.offsetX || 0);
+                const pY = parseFloat(parent.dataset.offsetY || 0);
 
-                children.forEach(child => {
-                    const childNode = child.querySelector('.node');
+                Array.from(group.children).filter(el => el.classList.contains('tree-row')).forEach(child => {
+                    const cNode = child.querySelector('.node');
+                    const cX = parseFloat(cNode.dataset.offsetX || 0);
+                    const cY = parseFloat(cNode.dataset.offsetY || 0);
                     
-                    // Posición del hijo considerando su offset de arrastre
-                    const cOffX = parseFloat(childNode.dataset.offsetX || 0);
-                    const cOffY = parseFloat(childNode.dataset.offsetY || 0);
+                    let sX = pX; 
+                    let sY = parent.offsetTop + (parent.offsetHeight / 2) + pY;
+                    let eX = 100 + cX; 
+                    let eY = child.offsetTop + cNode.offsetTop + (cNode.offsetHeight / 2) + cY;
                     
-                    const eX = 100 + cOffX;
-                    const eY = child.offsetTop + childNode.offsetTop + (childNode.offsetHeight / 2) + cOffY;
-
+                    const midX = (sX + eX) / 2;
                     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                     path.setAttribute("class", "connector-path");
-                    
-                    // Punto de control de la curva de Bezier
-                    const cX = (sX + eX) / 2;
-                    path.setAttribute("d", `M ${sX} ${sY} C ${cX} ${sY}, ${cX} ${eY}, ${eX} ${eY}`);
+                    path.setAttribute("d", `M ${sX} ${sY} C ${midX} ${sY}, ${midX} ${eY}, ${eX} ${eY}`);
                     svg.appendChild(path);
                 });
             });
         }
 
-        renderBtn.onclick = () => {
+        renderBtn.onclick = async () => {
             try {
-                const data = JSON.parse(jsonInput.value);
-                canvas.innerHTML = '';
-                const schemaWrapper = document.createElement('div');
-                schemaWrapper.style.position = 'relative';
-                schemaWrapper.style.width = 'max-content';
-                schemaWrapper.appendChild(renderTree(data));
-                canvas.appendChild(schemaWrapper);
-                
-                setTimeout(() => {
-                    drawConnectors();
-                    centerView();
-                }, 150);
-                statusMsg.textContent = "SISTEMA: DATOS PROCESADOS";
-            } catch (e) {
-                statusMsg.textContent = "SISTEMA: ERROR DE SINTAXIS";
+                const text = await navigator.clipboard.readText();
+                const cleanText = text.replace(/```json|```/g, "").trim();
+                currentData = JSON.parse(cleanText);
+                await executeRender(currentData);
+                statusMsg.textContent = "SISTEMA: ACTUALIZADO Y RE-CENTRADO";
+            } catch (err) {
+                statusMsg.textContent = "ERROR: OTORGA PERMISO DE PEGADO EN EL NAVEGADOR";
+                console.error(err);
             }
         };
 
-        downloadBtn.onclick = () => {
-            statusMsg.textContent = "SISTEMA: GENERANDO CAPTURA...";
-            const oldScale = scale;
-            const oldX = translateX;
-            const oldY = translateY;
-            
-            scale = 1; translateX = 0; translateY = 0;
-            updateTransform();
-
-            const actualContent = canvas.firstChild;
-            html2canvas(actualContent, { 
-                backgroundColor: "#ffffff", 
-                scale: 2,
-                logging: false,
-                useCORS: true
-            }).then(c => {
-                const link = document.createElement('a');
-                link.download = 'esquema_ia_v350.jpg';
-                link.href = c.toDataURL('image/jpeg', 0.9);
-                link.click();
-                
-                scale = oldScale; translateX = oldX; translateY = oldY;
-                updateTransform();
-                statusMsg.textContent = "SISTEMA: EXPORTACIÓN FINALIZADA";
-            });
+        viewport.onmousedown = (e) => {
+            if (e.target.classList.contains('node')) {
+                isDraggingNode = true; activeNode = e.target;
+                initialNodeX = parseFloat(activeNode.dataset.offsetX || 0);
+                initialNodeY = parseFloat(activeNode.dataset.offsetY || 0);
+                startX = e.clientX; startY = e.clientY;
+                e.stopPropagation();
+            } else {
+                isDraggingViewport = true; startX = e.clientX; startY = e.clientY;
+            }
         };
+
+        window.onmousemove = (e) => {
+            if (isDraggingNode && activeNode) {
+                const dx = (e.clientX - startX) / scale; 
+                const dy = (e.clientY - startY) / scale;
+                const nX = initialNodeX + dx; 
+                const nY = initialNodeY + dy;
+                activeNode.style.transform = `translate(${nX}px, ${nY}px)`;
+                activeNode.dataset.offsetX = nX; 
+                activeNode.dataset.offsetY = nY;
+                drawConnectors();
+            } else if (isDraggingViewport) {
+                translateX += e.clientX - startX; 
+                translateY += e.clientY - startY;
+                startX = e.clientX; startY = e.clientY;
+                updateTransform();
+            }
+        };
+
+        window.onmouseup = () => { isDraggingViewport = false; isDraggingNode = false; };
+
+        viewport.onwheel = (e) => {
+            e.preventDefault();
+            const delta = Math.exp(-e.deltaY * 0.001);
+            const nextScale = Math.min(Math.max(scale * delta, 0.1), 5);
+            const rect = viewport.getBoundingClientRect();
+            translateX = (rect.width/2) - (rect.width/2 - translateX) * (nextScale / scale);
+            translateY = (rect.height/2) - (rect.height/2 - translateY) * (nextScale / scale);
+            scale = nextScale;
+            updateTransform();
+        };
+
+        function centerView() {
+            const vW = viewport.clientWidth, vH = viewport.clientHeight;
+            const content = canvas.firstChild;
+            if (!content) return;
+            const cR = content.getBoundingClientRect();
+            
+            const contentWidth = cR.width / scale;
+            const contentHeight = cR.height / scale;
+            
+            scale = Math.min((vW - 120) / contentWidth, (vH - 120) / contentHeight, 1.0);
+            
+            translateX = (vW / 2) - (3000 + contentWidth / 2) * scale;
+            translateY = (vH / 2) - (3000 + contentHeight / 2) * scale;
+            
+            updateTransform();
+        }
+
+        document.getElementById('reset-view-btn').onclick = centerView;
 
         document.getElementById('copy-prompt-btn').onclick = () => {
             const el = document.getElementById('prompt-text');
             el.select();
             document.execCommand('copy');
-            statusMsg.textContent = "SISTEMA: PROMPT COPIADO AL PORTAPAPELES";
+            statusMsg.textContent = "SISTEMA: PROMPT COPIADO";
         };
 
         window.onload = () => {
-            jsonInput.value = JSON.stringify({
-                "titulo": "Sistemas Interactivos",
-                "hijos": [
-                    { "titulo": "Manipulación Directa", "hijos": [
-                        {"titulo": "Haz clic y arrastra cualquier nodo para moverlo libremente.", "hijos": []}, 
-                        {"titulo": "Las conexiones se actualizan dinámicamente.", "hijos": []}
-                    ]},
-                    { "titulo": "Organización Visual", "hijos": [
-                        {"titulo": "Personaliza tu esquema para hacerlo más atractivo.", "hijos": []},
-                        {"titulo": "Exporta el resultado final como imagen.", "hijos": []}
-                    ]}
-                ]
-            }, null, 2);
-            renderBtn.click();
+            currentData = {"titulo": "Generador Listo", "hijos": [{"titulo": "Copia el JSON de tu IA", "hijos": []}, {"titulo": "Usa el botón superior", "hijos": []}]};
+            executeRender(currentData);
         };
-
         window.onresize = centerView;
     </script>
 </body>
